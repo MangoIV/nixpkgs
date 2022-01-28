@@ -143,6 +143,7 @@
 , "gulp"
 , "gulp-cli"
 , "he"
+, "highlight.js"
 , "html-minifier"
 , "htmlhint"
 , "http-server"
