@@ -641,6 +641,69 @@ in
           type = types.int;
           description = "External port used to access registry from the internet";
         };
+
+        database = {
+          enable = lib.options.mkEnableOption "container registry metadata database";
+          host = mkOption {
+            type = types.str;
+            default = config.services.gitlab.databaseHost;
+            defaultText = literalExpression "config.services.gitlab.databaseHost";
+            description = "Registry database hostname.";
+          };
+          port = mkOption {
+            type = types.port;
+            default = 5432;
+            description = "Registry database port.";
+          };
+          username = mkOption {
+            type = types.str;
+            default = "gitlab";
+            description = "Registry database user.";
+          };
+          passwordFile = mkOption {
+            type = with types; nullOr path;
+            default = null;
+            description = ''
+              File containing the registry database user password.
+
+              This should be a string, not a nix path, since nix paths are
+              copied into the world-readable nix store.
+            '';
+          };
+          databaseName = mkOption {
+            type = types.str;
+            default = "gitlab";
+            description = "Registry database name.";
+          };
+          sslMode = mkOption {
+            type = types.enum [ "disable" "allow" "prefer" "require" "verify-ca" "verify-full" ];
+            default = "require";
+            description = ''
+              Whether TLS should be used in the PostgreSQL connection.
+            '';
+          };
+          sslCert = mkOption {
+            type = with types; nullOr path;
+            default = null;
+            description = ''
+              TLS certificate path.
+            '';
+          };
+          sslKey = mkOption {
+            type = with types; nullOr path;
+            default = null;
+            description = ''
+              TLS key path.
+            '';
+          };
+          sslRootCert = mkOption {
+            type = with types; nullOr path;
+            default = null;
+            description = ''
+              TLS root certificate path.
+            '';
+          };
+        };
       };
 
       smtp = {
@@ -1362,6 +1425,15 @@ in
     systemd.services.docker-registry = optionalAttrs cfg.registry.enable {
       wants = [ "gitlab-registry-cert.service" ];
       after = [ "gitlab-registry-cert.service" ];
+      preStart = ''
+        cat ${config.services.dockerRegistry.configFile} > $RUNTIME_DIRECTORY/config.yml
+      '' + optionalString (cfg.registry.database.passwordFile != null) ''
+        echo $RUNTIME_DIRECTORY/config.yml
+        ${pkgs.replace-secret}/bin/replace-secret \
+          '@db_password@' \
+          ${cfg.registry.database.passwordFile} \
+          $RUNTIME_DIRECTORY/config.yml
+      '';
     };
 
     # Enable Docker Registry, if GitLab-Container Registry is enabled
@@ -1376,6 +1448,18 @@ in
           service = cfg.registry.serviceName;
           issuer = cfg.registry.issuer;
           rootcertbundle = cfg.registry.certFile;
+        };
+        database = {
+          enabled = cfg.registry.database.enable;
+          host = cfg.registry.database.host;
+          port = cfg.registry.database.port;
+          user = cfg.registry.database.username;
+          password = "@db_password@";
+          dbname = cfg.registry.database.databaseName;
+          sslmode = cfg.registry.database.sslMode;
+          sslcert = cfg.registry.database.sslCert;
+          sslkey = cfg.registry.database.sslKey;
+          sslrootcert = cfg.registry.database.sslRootCert;
         };
       };
     };

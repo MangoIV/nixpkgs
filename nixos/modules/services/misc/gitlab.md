@@ -162,3 +162,76 @@ A list of all available rake tasks can be obtained by running:
 ```ShellSession
 $ sudo -u git -H gitlab-rake -T
 ```
+
+### Migrating container metadata to database {#module-services-gitlab-maintenance-registry-database}
+
+GitLab is gradually [moving towards][epic5521] tracking of container registry
+metadata in a dedicated database. This can be configured in NixOS via the
+options in `services.gitlab.registry.database`.
+
+Documentation on the migration path for an existing installation can be found
+in the [GitLab documentation][registry-migration]. In this section we will
+outline the three-step migration process as it would be performed in a NixOS
+installation.
+
+1. Create a PostgreSQL database for use by container metadata:
+   ```bash
+   $ sudo -u postgres psql
+   postgres=# create role gitlab_registry with password 'ha8iJ#MIMDKKonwnbd' login;
+   CREATE ROLE
+   postgres=# create database gitlab_registry with owner gitlab_registry;
+   CREATE DATABASE
+   ```
+
+2. Configure the database but leave support disabled with, for instance,
+
+   ```nix
+   {
+     services.gitlab.registry.database = {
+       enable = false;
+       host = "db-server.domain";
+       port = 5432;
+       user = "db-user";
+       passwordFile = "/var/secrets/gitlab-registry-database-password";
+       databaseName = "gitlab-registry";
+     };
+   }
+   ```
+
+3. Apply the schema migrations and begin the initial import step:
+
+   ```bash
+   $ nix run nixpkgs#gitlab-container-registry -- database migrate up
+   $ nix shell nixpkgs#gitlab-container-registry -c \
+       sudo -u git registry import --step-one
+   ```
+
+4. Place the registry in read-only mode in preparation for
+   the second import step:
+
+   ```nix
+   {
+     services.dockerRegistry.extraConfig.maintenance.readonly.enabled = true;
+   }
+   ```
+
+5. Initiate the step two import:
+
+   ```bash
+   $ nix shell nixpkgs#gitlab-container-registry -c \
+       sudo -u git registry import --step-two
+   ```
+
+6. Set `services.gitlab.registry.database.enable` to `true` and return the
+   registry to read-write mode.
+
+7. Complete the migration by running the step three import:
+
+   ```bash
+   $ nix shell nixpkgs#gitlab-container-registry -c \
+       sudo -u git registry import --step-three
+   ```
+
+[registry-migration]: https://docs.gitlab.com/ee/administration/packages/container_registry_metadata_database.html
+[epic5521]: https://gitlab.com/groups/gitlab-org/-/epics/5521
+
