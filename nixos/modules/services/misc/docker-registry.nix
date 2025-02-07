@@ -143,10 +143,17 @@ in
       description = "Docker Container Registry";
       wantedBy = [ "multi-user.target" ];
       after = [ "network.target" ];
+      # We copy the configuration into $RUNTIME_DIRECTORY to allow
+      # downstream users (e.g. the GitLab module) to override preStart
+      # in order to, e.g., substitute credentials in the configuration.
+      preStart = ''
+        cat ${configFile} > $RUNTIME_DIRECTORY/config.yml
+      '';
       script = ''
-        ${cfg.package}/bin/registry serve ${configFile}
+        ${cfg.package}/bin/registry serve $RUNTIME_DIRECTORY/config.yml
       '';
 
+      serviceConfig.RuntimeDirectory = "docker-registry";
       serviceConfig = {
         User = "docker-registry";
         WorkingDirectory = cfg.storagePath;
