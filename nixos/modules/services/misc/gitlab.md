@@ -91,6 +91,52 @@ service called `gitlab-mailroom` is enabled for fetching incoming mail.
 Refer to [](#ch-options) for all available configuration
 options for the [services.gitlab](#opt-services.gitlab.enable) module.
 
+### Container registry {#module-services-gitlab-configuring-container-registry}
+
+GitLab Container registry support is built upon GitLab's
+[`container-registry`][container-registry] registry implementation
+(`pkgs.gitlab-container-registry`).
+This is an HTTP service typically served on port 5000 which runs alongside
+GitLab and is configured via the options in `services.gitlab.registry`.
+Typically this service will be exposed to the internet via reverse proxy.
+
+Authentication is handled by JWT, the keys of which must be shared between
+GitLab and the registry.
+
+A simple registry configuration using `nginx` for reverse proxying might look
+like:
+
+```nix
+{
+  services.gitlab.registry = {
+    enable = true;
+    keyFile = "/var/lib/gitlab-docker-registry/registry-auth.key";
+    certFile = "/var/lib/gitlab-docker-registry/registry-auth.crt";
+    externalAddress = "registry.my-domain.org";
+    externalPort = 443;
+
+    -- This is unnecessary if system.stateVersion >= 23.11
+    package = pkgs.gitlab-container-registry;
+  };
+
+  services.nginx = {
+    virtualHosts."registry.my-domain.org" = {
+      enableACME = true;
+      forceSSL = true;
+      locations."/" = {
+        proxyPass = "http://localhost:5000";
+      };
+      -- Images tend to be large, disable maximum body size
+      extraConfig = ''
+        client_max_body_size 0;
+      '';
+    };
+  };
+}
+```
+
+[container-registry]: https://gitlab.com/gitlab-org/container-registry/
+
 ## Maintenance {#module-services-gitlab-maintenance}
 
 ### Backups {#module-services-gitlab-maintenance-backups}
