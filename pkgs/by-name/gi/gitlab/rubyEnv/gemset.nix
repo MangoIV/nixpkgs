@@ -3991,10 +3991,10 @@ src: {
     platforms = [ ];
     source = {
       remotes = [ "https://rubygems.org" ];
-      sha256 = "0p6vdc7knd6a5jf08qkjc2hay30aqirbcmb40mh4vz8mwb3gys8i";
+      sha256 = "0gpqz526j2395swp3a1ar00j22m0n82n73caskwnylbzfqrqcz4v";
       type = "gem";
     };
-    version = "2.5.11";
+    version = "2.6.10";
   };
   graphql-docs = {
     dependencies = [
