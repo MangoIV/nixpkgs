@@ -399,8 +399,8 @@ in
   mkRuby = generic;
 
   ruby_3_3 = generic {
-    version = rubyVersion "3" "3" "10" "";
-    hash = "sha256-tVW6pGejBs/I5sbtJNDSeyfpob7R2R2VUJhZ6saw6Sg=";
+    version = rubyVersion "3" "3" "14" "";
+    hash = "sha256-0EOO4pGwysr5fHpx30yTnX8yZcjC0bj/4nMR9x/GgLA=";
     cargoHash = "sha256-xE7Cv+NVmOHOlXa/Mg72CTSaZRb72lOja98JBvxPvSs=";
   };
 
